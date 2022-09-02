@@ -136,39 +136,9 @@ void msgq_be_thread_sync (void *context1)
     zmq_close (backend);
 }
 
-#if 1
-
 int main ()
 {
     zmq_threadstart (msgq_fe_thread_async, NULL);
     msgq_be_thread_sync(NULL);
     return 0;
 }
-
-#else
-
-int main ()
-{
-    // 1.创建新的上下文
-    void *context = zmq_ctx_new ();
-
-    // 2.前端套接字, 用于连接内部的天气服务器
-    void *frontend = zmq_socket (context, ZMQ_XSUB);
-    zmq_bind (frontend, "tcp://127.0.0.1:5555");
-
-    // 3.后端套接字, 用来处理外部的订阅者的请求
-    void *backend = zmq_socket (context, ZMQ_XPUB);
-    zmq_bind (backend, "tcp://127.0.0.1:5556");
-
-    // 4.持续运行代理
-    zmq_proxy (frontend, backend, NULL);
-
-    // 5.关闭套接字、清除上下文
-    zmq_close (frontend);
-    zmq_close (backend);
-    zmq_ctx_destroy (context);
-
-    return 0;
-}
-
-#endif
