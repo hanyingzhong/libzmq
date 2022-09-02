@@ -1998,7 +1998,7 @@ void zmq::socket_base_t::monitor_event (
                 zmq_msg_init_size (&msg, endpoint_uri.size ());
                 memcpy (zmq_msg_data (&msg), endpoint_uri.c_str (),
                         endpoint_uri.size ());
-                zmq_msg_send (&msg, _monitor_socket, 0);
+                zmq_msg_send (&msg, _monitor_socket, ZMQ_SNDMORE);
      
                 //  Send remote in second frame
                 zmq_msg_init_size (&msg, endpoint_uri_pair_.remote.size ());
