@@ -6,16 +6,25 @@
 #include <string.h>
 #include <zmq.h>
 
+/*
 #define ASYNC_MSGQ_FE   "tcp://127.0.0.1:5555"
 #define ASYNC_MSGQ_BE   "tcp://127.0.0.1:5556"
 
 #define SYNC_MSGQ_FE    "tcp://127.0.0.1:5557"
 #define SYNC_MSGQ_BE    "tcp://127.0.0.1:5558"
+*/
+
+#define ASYNC_MSGQ_FE "tcp://*:5555"
+#define ASYNC_MSGQ_BE "tcp://*:5556"
+
+#define SYNC_MSGQ_FE "tcp://*:5557"
+#define SYNC_MSGQ_BE "tcp://*:5558"
 
 #define ASYNC_MSGQ_FE_MON "inproc://ASYNC_MSGQ_FE_MON"
 #define ASYNC_MSGQ_BE_MON "inproc://ASYNC_MSGQ_BE_MON"
 
 char *zmq_strevent (int event);
+
 
 void monitor_async_fe_event (void *monitor)
 {
@@ -71,14 +80,13 @@ void monitor_async_fe_event (void *monitor)
     }
 }
 
-void start_monitor_async_msgq_fe (void *context, void *socket)
+void start_monitor_manager (void *context, void *socket, char *url)
 {
     void *client_mon = zmq_socket (context, ZMQ_PAIR);
-    zmq_socket_monitor (socket, ASYNC_MSGQ_FE_MON, ZMQ_EVENT_ALL);
-    /* zmq_socket_monitor_versioned (socket, ASYNC_MSGQ_FE_MON, ZMQ_EVENT_ALL,
-                                       2,
-                                  ZMQ_PAIR);*/
-    zmq_connect (client_mon, ASYNC_MSGQ_FE_MON);
+
+    zmq_socket_monitor (socket, url, ZMQ_EVENT_ALL);
+    zmq_connect (client_mon, url);
+
     zmq_threadstart (monitor_async_fe_event, client_mon);
 }
 
@@ -91,11 +99,13 @@ void msgq_fe_thread_async (void *context1)
     void *frontend = zmq_socket (context, ZMQ_XSUB);
     zmq_bind (frontend, ASYNC_MSGQ_FE);
 
-    start_monitor_async_msgq_fe (context, frontend);
+    start_monitor_manager (context, frontend, ASYNC_MSGQ_FE_MON);
 
     // 3.后端套接字, 用来处理外部的订阅者的请求
     void *backend = zmq_socket (context, ZMQ_XPUB);
     zmq_bind (backend, ASYNC_MSGQ_BE);
+
+    start_monitor_manager (context, backend, ASYNC_MSGQ_BE_MON);
 
     // 4.持续运行代理
     zmq_proxy (frontend, backend, NULL);
