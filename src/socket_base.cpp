@@ -1999,6 +1999,12 @@ void zmq::socket_base_t::monitor_event (
                 memcpy (zmq_msg_data (&msg), endpoint_uri.c_str (),
                         endpoint_uri.size ());
                 zmq_msg_send (&msg, _monitor_socket, 0);
+     
+                //  Send remote in second frame
+                zmq_msg_init_size (&msg, endpoint_uri_pair_.remote.size ());
+                memcpy (zmq_msg_data (&msg), endpoint_uri_pair_.remote.c_str (),
+                        endpoint_uri_pair_.remote.size ());
+                zmq_msg_send (&msg, _monitor_socket, 0);                
             } break;
             case 2: {
                 //  Send event in first frame (64bit unsigned)
