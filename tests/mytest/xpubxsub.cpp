@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <zmq.h>
 
 /*
@@ -22,14 +23,29 @@
 
 #define ASYNC_MSGQ_FE_MON "inproc://ASYNC_MSGQ_FE_MON"
 #define ASYNC_MSGQ_BE_MON "inproc://ASYNC_MSGQ_BE_MON"
+#define SYNC_MSGQ_FE_MON  "inproc://SYNC_MSGQ_FE_MON"
+#define SYNC_MSGQ_BE_MON  "inproc://SYNC_MSGQ_BE_MON"
 
 char *zmq_strevent (int event);
 
+void monitor_get_time (char *strtime, size_t size)
+{
+    time_t tt_;
+    struct tm tm_;
+
+    memset (strtime, 0, size);
+    time (&tt_);              //get seconds
+    localtime_s (&tm_, &tt_); //convert seconds to local time
+
+    snprintf (strtime, size, "%d%02d%02d %02d:%02d:%02d", 1900 + tm_.tm_year,
+              tm_.tm_mon + 1, tm_.tm_mday, tm_.tm_hour, tm_.tm_min, tm_.tm_sec);
+}
 
 void monitor_async_fe_event (void *monitor)
 {
     char        local[512];
     char        remote[512];
+    char        strtime[128];
     uint8_t    *data;
     uint16_t    event;
     size_t      size;
@@ -42,6 +58,7 @@ void monitor_async_fe_event (void *monitor)
         if (zmq_msg_recv (&msg, monitor, 0) == -1) {
             return;
         }
+        monitor_get_time (strtime, 128);
 
         data  = (uint8_t *) zmq_msg_data (&msg);
         event = *(uint16_t *) (data);
@@ -59,7 +76,7 @@ void monitor_async_fe_event (void *monitor)
         size = zmq_msg_size (&msg);
         memcpy (local, data, size);
         local[size] = 0;
-        printf ("EVENT: %-37s%5d  %.*s", zmq_strevent(event), value, (int) size,
+        printf ("%s: EVENT: %-37s%5d  %.*s", strtime, zmq_strevent(event), value, (int) size,
                 local);
 
         if (!zmq_msg_more (&msg)) {
@@ -99,12 +116,11 @@ void msgq_fe_thread_async (void *context1)
     void *frontend = zmq_socket (context, ZMQ_XSUB);
     zmq_bind (frontend, ASYNC_MSGQ_FE);
 
-    start_monitor_manager (context, frontend, ASYNC_MSGQ_FE_MON);
-
     // 3.后端套接字, 用来处理外部的订阅者的请求
     void *backend = zmq_socket (context, ZMQ_XPUB);
     zmq_bind (backend, ASYNC_MSGQ_BE);
 
+    start_monitor_manager (context, frontend, ASYNC_MSGQ_FE_MON);
     start_monitor_manager (context, backend, ASYNC_MSGQ_BE_MON);
 
     // 4.持续运行代理
@@ -127,6 +143,9 @@ void msgq_be_thread_sync (void *context1)
     // 3.后端套接字, 用来处理外部的订阅者的请求
     void *backend = zmq_socket (context, ZMQ_XPUB);
     zmq_bind (backend, SYNC_MSGQ_BE);
+
+    start_monitor_manager (context, frontend, SYNC_MSGQ_FE_MON);
+    start_monitor_manager (context, backend,  SYNC_MSGQ_BE_MON);
 
     // 4.持续运行代理
     zmq_proxy (frontend, backend, NULL);
