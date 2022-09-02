@@ -76,11 +76,10 @@ void monitor_async_fe_event (void *monitor)
         size = zmq_msg_size (&msg);
         memcpy (local, data, size);
         local[size] = 0;
-        printf ("%s: EVENT: %-37s%5d  %.*s", strtime, zmq_strevent(event), value, (int) size,
-                local);
 
         if (!zmq_msg_more (&msg)) {
-            printf ("\r\n");
+            printf ("%s: EVENT: %-37s%5d  %.*s\r\n", strtime, zmq_strevent (event),
+                    value, (int) size, local);
             continue;
         }
         zmq_msg_init (&msg);
@@ -93,18 +92,21 @@ void monitor_async_fe_event (void *monitor)
         memcpy (remote, data, size);
         remote[size] = 0;
 
-        printf ("  %.*s\r\n", (int) size, remote);
+        printf ("<%s>  %-37s%5d  %.*s  %.*s\r\n", strtime, zmq_strevent (event), 
+            value, (int) size, local, (int) size, remote);
     }
+
+    zmq_close (monitor);
 }
 
 void start_monitor_manager (void *context, void *socket, char *url)
 {
     void *client_mon = zmq_socket (context, ZMQ_PAIR);
 
-    zmq_socket_monitor (socket, url, ZMQ_EVENT_ALL);
     zmq_connect (client_mon, url);
-
     zmq_threadstart (monitor_async_fe_event, client_mon);
+
+    zmq_socket_monitor (socket, url, ZMQ_EVENT_ALL);
 }
 
 void msgq_fe_thread_async (void *context1)
